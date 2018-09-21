@@ -1,6 +1,8 @@
 package com.example.asus.halalfoodfinder;
 
+import android.Manifest;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.location.Location;
 import android.os.AsyncTask;
 import android.support.annotation.NonNull;
@@ -9,23 +11,59 @@ import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.widget.TextView;
+import android.widget.Toast;
 
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.JsonArrayRequest;
+import com.android.volley.toolbox.Volley;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.places.GeoDataClient;
+import com.google.android.gms.location.places.Place;
+import com.google.android.gms.location.places.PlaceBufferResponse;
 import com.google.android.gms.location.places.PlaceDetectionClient;
 import com.google.android.gms.location.places.Places;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.BufferedInputStream;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+
 public class MapActivity extends AppCompatActivity implements OnMapReadyCallback{
+
+    private ArrayList<String> mPLaceID;
+
+    protected String testString = "";
+
+    private String url = "http://192.168.1.3/halalfood/getres.php";
+    private RequestQueue mQueue;
+    private TextView textView;
     private static final String TAG = MapActivity.class.getSimpleName();
     private GoogleMap mMap;
     private CameraPosition mCameraPosition;
@@ -48,12 +86,23 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
     private static final String KEY_LOCATION = "location";
 
 
+    //private GoogleMap mMap;
+    private static final int LOCATION_REQUEST = 500;
+    ArrayList<LatLng> listPoints;
+
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_map);
+
+        mPLaceID = new ArrayList<String>();
+        //ArrayList<LatLng> listPoints;
+
+
+
+        mQueue = Volley.newRequestQueue(this);
 
         // Construct a GeoDataClient.
         mGeoDataClient = Places.getGeoDataClient(this, null);
@@ -64,11 +113,24 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         // Construct a FusedLocationProviderClient.
         mFusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
 
+        textView = (TextView) findViewById(R.id.textView);
+        textView.setText(" Before");
 
         SupportMapFragment supportMapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         supportMapFragment.getMapAsync(this);
+
+        listPoints = new ArrayList<>();
+
+
+
+
     }
+
+
+
+
+
 /*
     @Override
     protected void onSaveInstanceState(Bundle outState) {
@@ -84,12 +146,222 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
 
+        getLocationPermission();
+
+
 
         // Turn on the My Location layer and the related control on the map.
         updateLocationUI();
 
+
+        //place Marker on Halal Restaurants
+        new GetHalalRestaurantIds().execute();
+
+        putMarkerOnHalalRestaurant();
+
         // Get the current location of the device and set the position of the map.
         getDeviceLocation();
+/*
+        mMap.getUiSettings().setZoomControlsEnabled(true);
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, LOCATION_REQUEST);
+            return;
+        }
+        mMap.setMyLocationEnabled(true);
+        mMap.setOnMapLongClickListener(new GoogleMap.OnMapLongClickListener() {
+            @Override
+            public void onMapLongClick(LatLng latLng) {
+                //Reset marker when already 2
+                if (listPoints.size() == 2) {
+                    listPoints.clear();
+                    mMap.clear();
+                }
+                //Save first point select
+                listPoints.add(latLng);
+                //Create marker
+                MarkerOptions markerOptions = new MarkerOptions();
+                markerOptions.position(latLng);
+
+                if (listPoints.size() == 1) {
+                    //Add first marker to the map
+                    markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN));
+                } else {
+                    //Add second marker to the map
+                    markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED));
+                }
+                mMap.addMarker(markerOptions);
+
+                if (listPoints.size() == 2) {
+                    //Create the URL to get request from first marker to second marker
+                    String url = getRequestUrl(listPoints.get(0), listPoints.get(1));
+                    TaskRequestDirections taskRequestDirections = new TaskRequestDirections();
+                    taskRequestDirections.execute(url);
+                }
+            }
+        });
+        */
+    }
+/*
+    private String getRequestUrl(LatLng origin, LatLng dest) {
+        //Value of origin
+        String str_org = "origin=" + origin.latitude +","+origin.longitude;
+        //Value of destination
+        String str_dest = "destination=" + dest.latitude+","+dest.longitude;
+        //Set value enable the sensor
+        String sensor = "sensor=false";
+        //Mode for find direction
+        String mode = "mode=driving";
+        //Build the full param
+        String param = str_org +"&" + str_dest + "&" +sensor+"&" +mode;
+        //Output format
+        String output = "json";
+        //Create url to request
+        String url = "https://maps.googleapis.com/maps/api/directions/" + output + "?" + param;
+        return url;
+    }
+
+    private String requestDirection(String reqUrl) throws IOException {
+        String responseString = "";
+        InputStream inputStream = null;
+        HttpURLConnection httpURLConnection = null;
+        try{
+            URL url = new URL(reqUrl);
+            httpURLConnection = (HttpURLConnection) url.openConnection();
+            httpURLConnection.connect();
+
+            //Get the response result
+            inputStream = httpURLConnection.getInputStream();
+            InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
+            BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
+
+            StringBuffer stringBuffer = new StringBuffer();
+            String line = "";
+            while ((line = bufferedReader.readLine()) != null) {
+                stringBuffer.append(line);
+            }
+
+            responseString = stringBuffer.toString();
+            bufferedReader.close();
+            inputStreamReader.close();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if (inputStream != null) {
+                inputStream.close();
+            }
+            httpURLConnection.disconnect();
+        }
+        return responseString;
+    }
+
+    public class TaskRequestDirections extends AsyncTask<String, Void, String> {
+
+        @Override
+        protected String doInBackground(String... strings) {
+            String responseString = "";
+            try {
+                responseString = requestDirection(strings[0]);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return  responseString;
+        }
+
+        @Override
+        protected void onPostExecute(String s) {
+            super.onPostExecute(s);
+            //Parse json here
+            TaskParser taskParser = new TaskParser();
+            taskParser.execute(s);
+        }
+    }
+*/
+    public class TaskParser extends AsyncTask<String, Void, List<List<HashMap<String, String>>> > {
+
+        @Override
+        protected List<List<HashMap<String, String>>> doInBackground(String... strings) {
+            JSONObject jsonObject = null;
+            List<List<HashMap<String, String>>> routes = null;
+            try {
+                jsonObject = new JSONObject(strings[0]);
+                DirectionsParser directionsParser = new DirectionsParser();
+                routes = directionsParser.parse(jsonObject);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+            return routes;
+        }
+
+        @Override
+        protected void onPostExecute(List<List<HashMap<String, String>>> lists) {
+            //Get list route and display it into the map
+
+            ArrayList points = null;
+
+            PolylineOptions polylineOptions = null;
+
+            for (List<HashMap<String, String>> path : lists) {
+                points = new ArrayList();
+                polylineOptions = new PolylineOptions();
+
+                for (HashMap<String, String> point : path) {
+                    double lat = Double.parseDouble(point.get("lat"));
+                    double lon = Double.parseDouble(point.get("lon"));
+
+                    points.add(new LatLng(lat,lon));
+                }
+
+                polylineOptions.addAll(points);
+                polylineOptions.width(15);
+                polylineOptions.color(Color.BLUE);
+                polylineOptions.geodesic(true);
+            }
+
+            if (polylineOptions!=null) {
+                mMap.addPolyline(polylineOptions);
+            } else {
+                Toast.makeText(getApplicationContext(), "Direction not found!Try again!!", Toast.LENGTH_SHORT).show();
+            }
+
+        }
+    }
+
+
+
+    private void putMarkerOnHalalRestaurant() {
+
+        Log.d(TAG,"In the Method "+mPLaceID.size()+"  Test STring is "+testString);
+
+
+
+        for (int i=0;i<mPLaceID.size();i++)
+        {
+
+            Log.d(TAG,"Plcae ID Size is "+mPLaceID.size()+"   String "+mPLaceID.get(i));
+
+            mGeoDataClient.getPlaceById(mPLaceID.get(i).trim()).addOnCompleteListener(new OnCompleteListener<PlaceBufferResponse>() {
+                @Override
+                public void onComplete(@NonNull Task<PlaceBufferResponse> task) {
+                    if (task.isSuccessful())
+                    {
+                        PlaceBufferResponse places = task.getResult();
+                        Place place = places.get(0);
+
+                        mMap.addMarker(new MarkerOptions().position(place.getLatLng())
+                                .title("Halal !!!"));
+                        places.release();
+
+                    }
+
+                    else
+                    {
+                        Log.e(TAG, "Place not found.");
+
+                    }
+                }
+            });
+        }
     }
 
     private void getLocationPermission() {
@@ -182,8 +454,9 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
 
 
 
-    public class GetHalalRestaurantIds extends AsyncTask<Void, Void, Void>
+    private class GetHalalRestaurantIds extends AsyncTask<Void, Void, Void>
     {
+        String nothing = "";
 
         @Override
         protected void onPreExecute() {
@@ -192,12 +465,88 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
 
         @Override
         protected Void doInBackground(Void... voids) {
+            nothing = "Nothing";
+
+
+             JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null, new Response.Listener<JSONArray>() {
+
+                @Override
+                public void onResponse(JSONArray response) {
+
+
+                    for (int i=0;i<response.length();i++)
+                    {
+                        textView.setText("After");
+                        testString = "new Va;ue";
+                        try {
+                            JSONObject jsonObject = response.getJSONObject(i);
+                            Log.d(TAG,"Place ID is "+jsonObject.getString("res_id"));
+                            mPLaceID.add(jsonObject.getString("res_id"));
+                            Log.d(TAG,"From try"+testString);
+
+
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
+
+                    }
+
+                    for (int i=0;i<mPLaceID.size();i++)
+                    {
+
+
+                        Log.d(TAG,"Plcae ID Size is "+mPLaceID.size()+"   String "+mPLaceID.get(i));
+
+                        mGeoDataClient.getPlaceById(mPLaceID.get(i).trim()).addOnCompleteListener(new OnCompleteListener<PlaceBufferResponse>() {
+                            @Override
+                            public void onComplete(@NonNull Task<PlaceBufferResponse> task) {
+                                if (task.isSuccessful())
+                                {
+                                    Log.e(TAG, "Place  found.");
+                                    PlaceBufferResponse places = task.getResult();
+                                    Place place = places.get(0);
+
+                                    mMap.addMarker(new MarkerOptions().position(place.getLatLng())
+                                            .title("Halal !!!"));
+                                    places.release();
+
+                                }
+
+                                else
+                                {
+                                    Log.e(TAG, "Place not found.");
+
+                                }
+                            }
+                        });
+                    }
+
+
+
+                }
+
+            }, new Response.ErrorListener() {
+                @Override
+                public void onErrorResponse(VolleyError error) {
+                    error.printStackTrace();
+
+                }
+            });
+
+
+            mQueue.add(request);
+
+            Log.d(TAG," Here"+nothing+"  "+testString);
             return null;
         }
 
         @Override
         protected void onPostExecute(Void aVoid) {
+
+            Log.d(TAG,"\n here 2"+nothing+"  "+testString);
+
             super.onPostExecute(aVoid);
+            //Log.d(TAG,"From DB "+result);
         }
     }
 }
