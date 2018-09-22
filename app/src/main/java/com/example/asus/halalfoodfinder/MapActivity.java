@@ -1,10 +1,14 @@
 package com.example.asus.halalfoodfinder;
 
 import android.Manifest;
+import android.app.DownloadManager;
+import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.location.Location;
 import android.os.AsyncTask;
+import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -34,6 +38,7 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.tasks.OnCompleteListener;
@@ -55,11 +60,21 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-public class MapActivity extends AppCompatActivity implements OnMapReadyCallback{
+public class MapActivity extends AppCompatActivity implements OnMapReadyCallback,GoogleMap.OnMarkerClickListener{
+    boolean doubleBackToExitPressedOnce = false;
 
-    private ArrayList<String> mPLaceID;
+
+    public static ArrayList<String> mPLaceID;
+    public static Context context = null;
+
+    private HttpURLConnection urlConnection;
+    private BufferedReader reader;
+    // Will contain the raw JSON response as a string.
+    String resIdJsonStr;
 
     protected String testString = "";
+
+    private HashMap<String,Marker> markerID;
 
     private String url = "http://192.168.1.3/halalfood/getres.php";
     private RequestQueue mQueue;
@@ -98,10 +113,10 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         setContentView(R.layout.activity_map);
 
         mPLaceID = new ArrayList<String>();
-        //ArrayList<LatLng> listPoints;
+        ArrayList<LatLng> listPoints;
+        markerID = new HashMap<String, Marker>();
 
-
-
+        //mLocationPermissionGranted= false;
         mQueue = Volley.newRequestQueue(this);
 
         // Construct a GeoDataClient.
@@ -148,6 +163,8 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
 
         getLocationPermission();
 
+        mMap.setOnMarkerClickListener(this);
+
 
 
         // Turn on the My Location layer and the related control on the map.
@@ -161,7 +178,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
 
         // Get the current location of the device and set the position of the map.
         getDeviceLocation();
-/*
+
         mMap.getUiSettings().setZoomControlsEnabled(true);
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, LOCATION_REQUEST);
@@ -199,9 +216,9 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
                 }
             }
         });
-        */
+
     }
-/*
+
     private String getRequestUrl(LatLng origin, LatLng dest) {
         //Value of origin
         String str_org = "origin=" + origin.latitude +","+origin.longitude;
@@ -255,6 +272,33 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         return responseString;
     }
 
+    @Override
+    public boolean onMarkerClick(Marker marker) {
+
+        String id = marker.getSnippet();
+        marker.setSnippet(null);
+        if (doubleBackToExitPressedOnce) {
+            Intent intent = new Intent(MapActivity.this,RestaurantActivity.class);
+            startActivity(intent);
+
+        } else {
+            marker.showInfoWindow();
+            this.doubleBackToExitPressedOnce = true;
+            new Handler().postDelayed(new Runnable() {
+
+                @Override
+                public void run() {
+                    doubleBackToExitPressedOnce = false;
+                }
+            }, 2000);
+        }
+
+        Log.d(TAG," marker info "+marker.getId()+" "+marker.getTitle()+marker.getSnippet());
+
+        return true;
+    }
+
+
     public class TaskRequestDirections extends AsyncTask<String, Void, String> {
 
         @Override
@@ -276,7 +320,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
             taskParser.execute(s);
         }
     }
-*/
+
     public class TaskParser extends AsyncTask<String, Void, List<List<HashMap<String, String>>> > {
 
         @Override
@@ -335,6 +379,9 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
 
 
 
+
+
+
         for (int i=0;i<mPLaceID.size();i++)
         {
 
@@ -348,8 +395,10 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
                         PlaceBufferResponse places = task.getResult();
                         Place place = places.get(0);
 
-                        mMap.addMarker(new MarkerOptions().position(place.getLatLng())
+                         Marker marker =  mMap.addMarker(new MarkerOptions().position(place.getLatLng())
                                 .title("Halal !!!"));
+
+
                         places.release();
 
                     }
@@ -454,9 +503,10 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
 
 
 
-    private class GetHalalRestaurantIds extends AsyncTask<Void, Void, Void>
+    private class GetHalalRestaurantIds extends AsyncTask<Void, Void, String>
     {
-        String nothing = "";
+          String url  = "http://192.168.0.3/halalfood/getres.php";
+
 
         @Override
         protected void onPreExecute() {
@@ -464,9 +514,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         }
 
         @Override
-        protected Void doInBackground(Void... voids) {
-            nothing = "Nothing";
-
+        protected String doInBackground(Void... voids) {
 
              JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null, new Response.Listener<JSONArray>() {
 
@@ -497,6 +545,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
 
                         Log.d(TAG,"Plcae ID Size is "+mPLaceID.size()+"   String "+mPLaceID.get(i));
 
+                        final int finalI = i;
                         mGeoDataClient.getPlaceById(mPLaceID.get(i).trim()).addOnCompleteListener(new OnCompleteListener<PlaceBufferResponse>() {
                             @Override
                             public void onComplete(@NonNull Task<PlaceBufferResponse> task) {
@@ -507,7 +556,8 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
                                     Place place = places.get(0);
 
                                     mMap.addMarker(new MarkerOptions().position(place.getLatLng())
-                                            .title("Halal !!!"));
+                                            .title("Halal !!!")
+                                    .snippet(mPLaceID.get(finalI)));
                                     places.release();
 
                                 }
@@ -536,17 +586,48 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
 
             mQueue.add(request);
 
-            Log.d(TAG," Here"+nothing+"  "+testString);
-            return null;
+            Log.d(TAG," Here"+testString);
+
+
+            return resIdJsonStr;
         }
 
         @Override
-        protected void onPostExecute(Void aVoid) {
+        protected void onPostExecute(String s ) {
 
-            Log.d(TAG,"\n here 2"+nothing+"  "+testString);
+            super.onPostExecute(s);
+/*
+            Log.d(TAG,"\n Task Ended and nothing is "+s);
+            try {
+                JSONArray jsonArray = new JSONArray(s);
 
-            super.onPostExecute(aVoid);
+                for (int i=0;i<jsonArray.length();i++)
+
+                {
+                    JSONObject restaurant = jsonArray.getJSONObject(i);
+                    MapActivity.mPLaceID.add(restaurant.getString("res_id"));
+                }
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+
+
+            Log.d(TAG," mPlace length "+mPLaceID.size());
+
+*/
+            //super.onPostExecute(aVoid);
             //Log.d(TAG,"From DB "+result);
         }
+/*
+        public void getData(Response.Listener<JSONArray> l1, Response.ErrorListener l2 )
+        {
+
+            RequestQueue requestQueue = Volley.newRequestQueue(MapActivity.this);
+
+            JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET,url,null,l1,l2);
+            requestQueue.add(request);
+
+        }
+        */
     }
 }
