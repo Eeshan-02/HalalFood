@@ -15,6 +15,8 @@ import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -56,6 +58,7 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.security.PrivateKey;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -63,9 +66,9 @@ import java.util.List;
 public class MapActivity extends AppCompatActivity implements OnMapReadyCallback,GoogleMap.OnMarkerClickListener{
     boolean doubleBackToExitPressedOnce = false;
 
-
     public static ArrayList<String> mPLaceID;
     public static Context context = null;
+    private static String markerID;
 
     private HttpURLConnection urlConnection;
     private BufferedReader reader;
@@ -74,9 +77,9 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
 
     protected String testString = "";
 
-    private HashMap<String,Marker> markerID;
+    //private HashMap<String,Marker> markerID;
 
-    private String url = "http://192.168.1.3/halalfood/getres.php";
+    private String url = "http://192.168.0.3/halalfood/getres.php";
     private RequestQueue mQueue;
     private TextView textView;
     private static final String TAG = MapActivity.class.getSimpleName();
@@ -114,7 +117,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
 
         mPLaceID = new ArrayList<String>();
         ArrayList<LatLng> listPoints;
-        markerID = new HashMap<String, Marker>();
+        //markerID = new HashMap<String, Marker>();
 
         //mLocationPermissionGranted= false;
         mQueue = Volley.newRequestQueue(this);
@@ -275,14 +278,21 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
     @Override
     public boolean onMarkerClick(Marker marker) {
 
-        String id = marker.getSnippet();
-        marker.setSnippet(null);
+
+
+        //marker.setSnippet(null);
         if (doubleBackToExitPressedOnce) {
             Intent intent = new Intent(MapActivity.this,RestaurantActivity.class);
+            Log.d(TAG," in marker"+marker.getSnippet());
+            intent.putExtra("resID",marker.getSnippet());
             startActivity(intent);
 
         } else {
+            String temp = marker.getSnippet();
+            marker.setSnippet(null);
             marker.showInfoWindow();
+            marker.setSnippet(temp);
+
             this.doubleBackToExitPressedOnce = true;
             new Handler().postDelayed(new Runnable() {
 
@@ -505,7 +515,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
 
     private class GetHalalRestaurantIds extends AsyncTask<Void, Void, String>
     {
-          String url  = "http://192.168.0.3/halalfood/getres.php";
+          String url  = "http://192.168.0.8/halalfood/getres.php";
 
 
         @Override
