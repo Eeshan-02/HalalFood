@@ -16,6 +16,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -49,6 +50,7 @@ import com.google.android.gms.tasks.Task;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.w3c.dom.Text;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
@@ -70,6 +72,8 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
     public static Context context = null;
     private static String markerID;
 
+
+    public static double range = 0;
     private HttpURLConnection urlConnection;
     private BufferedReader reader;
     // Will contain the raw JSON response as a string.
@@ -78,8 +82,10 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
     protected String testString = "";
 
     //private HashMap<String,Marker> markerID;
+    private TextView mRangeText;
+    private Button mRangeButton;
 
-    private String url = "http://192.168.0.3/halalfood/getres.php";
+    private String url = "http://192.168.0.8/halalfood/getres.php";
     private RequestQueue mQueue;
     private TextView textView;
     private static final String TAG = MapActivity.class.getSimpleName();
@@ -96,6 +102,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
     private static final int DEFAULT_ZOOM = 15;
     private static final int PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 1;
     private boolean mLocationPermissionGranted;
+    private static boolean checkRange = false;
 
     // The geographical location where the device is currently located. That is, the last-known
     // location retrieved by the Fused Location Provider.
@@ -110,13 +117,17 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
 
 
 
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_map);
 
         mPLaceID = new ArrayList<String>();
-        ArrayList<LatLng> listPoints;
+        //ArrayList<LatLng> listPoints;
+
+        listPoints = new ArrayList<LatLng>();
         //markerID = new HashMap<String, Marker>();
 
         //mLocationPermissionGranted= false;
@@ -131,6 +142,9 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         // Construct a FusedLocationProviderClient.
         mFusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
 
+        mRangeText = (TextView) findViewById(R.id.rangeText);
+        mRangeButton = (Button) findViewById(R.id.findButton);
+
         textView = (TextView) findViewById(R.id.textView);
         textView.setText(" Before");
 
@@ -139,6 +153,16 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         supportMapFragment.getMapAsync(this);
 
         listPoints = new ArrayList<>();
+
+        mRangeButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                range = Double.valueOf(mRangeText.getText().toString());
+                checkRange = true;
+                new GetHalalRestaurantIds().execute();
+
+            }
+        });
 
 
 
@@ -172,15 +196,16 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
 
         // Turn on the My Location layer and the related control on the map.
         updateLocationUI();
+        getDeviceLocation();
 
 
         //place Marker on Halal Restaurants
         new GetHalalRestaurantIds().execute();
 
-        putMarkerOnHalalRestaurant();
+        //putMarkerOnHalalRestaurant();
 
         // Get the current location of the device and set the position of the map.
-        getDeviceLocation();
+
 
         mMap.getUiSettings().setZoomControlsEnabled(true);
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -316,6 +341,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
             String responseString = "";
             try {
                 responseString = requestDirection(strings[0]);
+                Log.d(TAG," Response String is "+responseString);
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -559,6 +585,11 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
                         Log.d(TAG,"Plcae ID Size is "+mPLaceID.size()+"   String "+mPLaceID.get(i));
 
                         final int finalI = i;
+
+                        if (checkRange == true)
+                        {
+                            mMap.clear();
+                        }
                         mGeoDataClient.getPlaceById(mPLaceID.get(i).trim()).addOnCompleteListener(new OnCompleteListener<PlaceBufferResponse>() {
                             @Override
                             public void onComplete(@NonNull Task<PlaceBufferResponse> task) {
@@ -568,11 +599,58 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
                                     PlaceBufferResponse places = task.getResult();
                                     Place place = places.get(0);
 
-                                    mMap.addMarker(new MarkerOptions().position(place.getLatLng())
-                                            .title("Halal !!!")
-                                    .snippet(mPLaceID.get(finalI)));
-                                    places.release();
 
+
+                                    float[] results = null;
+
+
+
+
+
+                                    if (mLastKnownLocation != null)
+                                    {
+                                        LatLng latLng = place.getLatLng();
+
+                                        results = new float[1];
+                                        Location.distanceBetween(mLastKnownLocation.getLatitude(), mLastKnownLocation.getLongitude(),
+                                                latLng.latitude, latLng.longitude, results);
+                                        Log.d(TAG,"Distance is  "+results[0]+" m");
+
+
+
+                                    }
+
+                                    //Log.d(TAG," Range is "+range);
+
+                                    if (checkRange == false)
+                                    {
+                                        mMap.addMarker(new MarkerOptions().position(place.getLatLng())
+                                                .title("Halal !!!")
+                                                .visible(true)
+                                                .snippet(mPLaceID.get(finalI)));
+                                    }
+
+                                    else
+                                    {
+
+
+                                        if (results[0] <= range)
+                                        {
+                                            mMap.addMarker(new MarkerOptions().position(place.getLatLng())
+                                                    .title("Halal !!!")
+                                                    .visible(true)
+                                                    .snippet(mPLaceID.get(finalI)));
+
+                                        }
+
+                                    }
+
+
+
+
+
+
+                                    places.release();
                                 }
 
                                 else

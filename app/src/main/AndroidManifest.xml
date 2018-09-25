@@ -32,7 +32,8 @@
             android:theme="@style/Theme.AppCompat.NoActionBar" />
         <activity android:name=".MapActivity" />
         <activity android:name=".RestaurantActivity" />
-        <activity android:name=".DirectionActivity"></activity>
+        <activity android:name=".DirectionActivity" />
+        <activity android:name=".ReminderActivity"></activity>
     </application>
 
 </manifest>
