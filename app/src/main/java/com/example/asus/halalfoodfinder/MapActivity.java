@@ -463,6 +463,8 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         }
         try {
             if (mLocationPermissionGranted) {
+
+
                 mMap.setMyLocationEnabled(true);
                 mMap.getUiSettings().setMyLocationButtonEnabled(true);
             } else {
@@ -493,6 +495,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
                         if (task.isSuccessful()) {
                             // Set the map's camera position to the current location of the device.
                             mLastKnownLocation = task.getResult();
+                            mMap.setMyLocationEnabled(true);
                             mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(
                                     new LatLng(mLastKnownLocation.getLatitude(),
                                             mLastKnownLocation.getLongitude()), DEFAULT_ZOOM));
