@@ -14,6 +14,8 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -69,8 +71,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
     boolean doubleBackToExitPressedOnce = false;
 
     public static ArrayList<String> mPLaceID;
-    public static Context context = null;
-    private static String markerID;
+
 
 
     public static double range = 0;
@@ -84,6 +85,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
     //private HashMap<String,Marker> markerID;
     private TextView mRangeText;
     private Button mRangeButton;
+    private Button mMenuButton;
 
     private String url = "http://192.168.0.8/halalfood/getres.php";
     private RequestQueue mQueue;
@@ -124,6 +126,8 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_map);
 
+
+
         mPLaceID = new ArrayList<String>();
         //ArrayList<LatLng> listPoints;
 
@@ -144,6 +148,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
 
         mRangeText = (TextView) findViewById(R.id.rangeText);
         mRangeButton = (Button) findViewById(R.id.findButton);
+        mMenuButton = (Button) findViewById(R.id.menuButton);
 
         textView = (TextView) findViewById(R.id.textView);
         textView.setText(" Before");
@@ -153,6 +158,15 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         supportMapFragment.getMapAsync(this);
 
         listPoints = new ArrayList<>();
+
+        mMenuButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(MapActivity.this, ReminderActivity.class);
+                startActivity(intent);
+
+            }
+        });
 
         mRangeButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -202,102 +216,8 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         //place Marker on Halal Restaurants
         new GetHalalRestaurantIds().execute();
 
-        //putMarkerOnHalalRestaurant();
-
-        // Get the current location of the device and set the position of the map.
 
 
-        mMap.getUiSettings().setZoomControlsEnabled(true);
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, LOCATION_REQUEST);
-            return;
-        }
-        mMap.setMyLocationEnabled(true);
-        mMap.setOnMapLongClickListener(new GoogleMap.OnMapLongClickListener() {
-            @Override
-            public void onMapLongClick(LatLng latLng) {
-                //Reset marker when already 2
-                if (listPoints.size() == 2) {
-                    listPoints.clear();
-                    mMap.clear();
-                }
-                //Save first point select
-                listPoints.add(latLng);
-                //Create marker
-                MarkerOptions markerOptions = new MarkerOptions();
-                markerOptions.position(latLng);
-
-                if (listPoints.size() == 1) {
-                    //Add first marker to the map
-                    markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN));
-                } else {
-                    //Add second marker to the map
-                    markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED));
-                }
-                mMap.addMarker(markerOptions);
-
-                if (listPoints.size() == 2) {
-                    //Create the URL to get request from first marker to second marker
-                    String url = getRequestUrl(listPoints.get(0), listPoints.get(1));
-                    TaskRequestDirections taskRequestDirections = new TaskRequestDirections();
-                    taskRequestDirections.execute(url);
-                }
-            }
-        });
-
-    }
-
-    private String getRequestUrl(LatLng origin, LatLng dest) {
-        //Value of origin
-        String str_org = "origin=" + origin.latitude +","+origin.longitude;
-        //Value of destination
-        String str_dest = "destination=" + dest.latitude+","+dest.longitude;
-        //Set value enable the sensor
-        String sensor = "sensor=false";
-        //Mode for find direction
-        String mode = "mode=driving";
-        //Build the full param
-        String param = str_org +"&" + str_dest + "&" +sensor+"&" +mode;
-        //Output format
-        String output = "json";
-        //Create url to request
-        String url = "https://maps.googleapis.com/maps/api/directions/" + output + "?" + param;
-        return url;
-    }
-
-    private String requestDirection(String reqUrl) throws IOException {
-        String responseString = "";
-        InputStream inputStream = null;
-        HttpURLConnection httpURLConnection = null;
-        try{
-            URL url = new URL(reqUrl);
-            httpURLConnection = (HttpURLConnection) url.openConnection();
-            httpURLConnection.connect();
-
-            //Get the response result
-            inputStream = httpURLConnection.getInputStream();
-            InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
-            BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
-
-            StringBuffer stringBuffer = new StringBuffer();
-            String line = "";
-            while ((line = bufferedReader.readLine()) != null) {
-                stringBuffer.append(line);
-            }
-
-            responseString = stringBuffer.toString();
-            bufferedReader.close();
-            inputStreamReader.close();
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            if (inputStream != null) {
-                inputStream.close();
-            }
-            httpURLConnection.disconnect();
-        }
-        return responseString;
     }
 
     @Override
@@ -333,121 +253,6 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         return true;
     }
 
-
-    public class TaskRequestDirections extends AsyncTask<String, Void, String> {
-
-        @Override
-        protected String doInBackground(String... strings) {
-            String responseString = "";
-            try {
-                responseString = requestDirection(strings[0]);
-                Log.d(TAG," Response String is "+responseString);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            return  responseString;
-        }
-
-        @Override
-        protected void onPostExecute(String s) {
-            super.onPostExecute(s);
-            //Parse json here
-            TaskParser taskParser = new TaskParser();
-            taskParser.execute(s);
-        }
-    }
-
-    public class TaskParser extends AsyncTask<String, Void, List<List<HashMap<String, String>>> > {
-
-        @Override
-        protected List<List<HashMap<String, String>>> doInBackground(String... strings) {
-            JSONObject jsonObject = null;
-            List<List<HashMap<String, String>>> routes = null;
-            try {
-                jsonObject = new JSONObject(strings[0]);
-                DirectionsParser directionsParser = new DirectionsParser();
-                routes = directionsParser.parse(jsonObject);
-            } catch (JSONException e) {
-                e.printStackTrace();
-            }
-            return routes;
-        }
-
-        @Override
-        protected void onPostExecute(List<List<HashMap<String, String>>> lists) {
-            //Get list route and display it into the map
-
-            ArrayList points = null;
-
-            PolylineOptions polylineOptions = null;
-
-            for (List<HashMap<String, String>> path : lists) {
-                points = new ArrayList();
-                polylineOptions = new PolylineOptions();
-
-                for (HashMap<String, String> point : path) {
-                    double lat = Double.parseDouble(point.get("lat"));
-                    double lon = Double.parseDouble(point.get("lon"));
-
-                    points.add(new LatLng(lat,lon));
-                }
-
-                polylineOptions.addAll(points);
-                polylineOptions.width(15);
-                polylineOptions.color(Color.BLUE);
-                polylineOptions.geodesic(true);
-            }
-
-            if (polylineOptions!=null) {
-                mMap.addPolyline(polylineOptions);
-            } else {
-                Toast.makeText(getApplicationContext(), "Direction not found!Try again!!", Toast.LENGTH_SHORT).show();
-            }
-
-        }
-    }
-
-
-
-    private void putMarkerOnHalalRestaurant() {
-
-        Log.d(TAG,"In the Method "+mPLaceID.size()+"  Test STring is "+testString);
-
-
-
-
-
-
-        for (int i=0;i<mPLaceID.size();i++)
-        {
-
-            Log.d(TAG,"Plcae ID Size is "+mPLaceID.size()+"   String "+mPLaceID.get(i));
-
-            mGeoDataClient.getPlaceById(mPLaceID.get(i).trim()).addOnCompleteListener(new OnCompleteListener<PlaceBufferResponse>() {
-                @Override
-                public void onComplete(@NonNull Task<PlaceBufferResponse> task) {
-                    if (task.isSuccessful())
-                    {
-                        PlaceBufferResponse places = task.getResult();
-                        Place place = places.get(0);
-
-                         Marker marker =  mMap.addMarker(new MarkerOptions().position(place.getLatLng())
-                                .title("Halal !!!"));
-
-
-                        places.release();
-
-                    }
-
-                    else
-                    {
-                        Log.e(TAG, "Place not found.");
-
-                    }
-                }
-            });
-        }
-    }
 
     private void getLocationPermission() {
         /*
@@ -491,6 +296,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
             if (mLocationPermissionGranted) {
 
 
+                mMap.getUiSettings().setZoomControlsEnabled(true);
                 mMap.setMyLocationEnabled(true);
                 mMap.getUiSettings().setMyLocationButtonEnabled(true);
             } else {
@@ -591,6 +397,8 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
                             mMap.clear();
                         }
                         mGeoDataClient.getPlaceById(mPLaceID.get(i).trim()).addOnCompleteListener(new OnCompleteListener<PlaceBufferResponse>() {
+
+
                             @Override
                             public void onComplete(@NonNull Task<PlaceBufferResponse> task) {
                                 if (task.isSuccessful())
@@ -625,7 +433,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
                                     if (checkRange == false)
                                     {
                                         mMap.addMarker(new MarkerOptions().position(place.getLatLng())
-                                                .title("Halal !!!")
+                                                .title(place.getName()+"\n"+place.getAddress())
                                                 .visible(true)
                                                 .snippet(mPLaceID.get(finalI)));
                                     }
@@ -687,38 +495,8 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         protected void onPostExecute(String s ) {
 
             super.onPostExecute(s);
-/*
-            Log.d(TAG,"\n Task Ended and nothing is "+s);
-            try {
-                JSONArray jsonArray = new JSONArray(s);
-
-                for (int i=0;i<jsonArray.length();i++)
-
-                {
-                    JSONObject restaurant = jsonArray.getJSONObject(i);
-                    MapActivity.mPLaceID.add(restaurant.getString("res_id"));
-                }
-            } catch (JSONException e) {
-                e.printStackTrace();
-            }
-
-
-            Log.d(TAG," mPlace length "+mPLaceID.size());
-
-*/
-            //super.onPostExecute(aVoid);
-            //Log.d(TAG,"From DB "+result);
-        }
-/*
-        public void getData(Response.Listener<JSONArray> l1, Response.ErrorListener l2 )
-        {
-
-            RequestQueue requestQueue = Volley.newRequestQueue(MapActivity.this);
-
-            JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET,url,null,l1,l2);
-            requestQueue.add(request);
 
         }
-        */
+
     }
 }
