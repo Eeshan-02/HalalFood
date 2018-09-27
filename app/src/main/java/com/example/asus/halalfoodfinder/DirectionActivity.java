@@ -1,6 +1,7 @@
 package com.example.asus.halalfoodfinder;
 
 import android.content.pm.PackageManager;
+import android.content.res.Resources;
 import android.graphics.Color;
 import android.location.Location;
 import android.os.AsyncTask;
@@ -24,6 +25,7 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
@@ -137,6 +139,25 @@ public class DirectionActivity extends AppCompatActivity implements OnMapReadyCa
 
                             LatLng mylatlng = new LatLng(mLastKnownLocation.getLatitude(),mLastKnownLocation.getLongitude());
 
+                            mGeoDataClient.getPlaceById(placeID.trim()).addOnCompleteListener(new OnCompleteListener<PlaceBufferResponse>() {
+                                @Override
+                                public void onComplete(@NonNull Task<PlaceBufferResponse> task) {
+                                    PlaceBufferResponse places = task.getResult();
+                                    Place place = places.get(0);
+
+
+                                    mMap.getUiSettings().setZoomControlsEnabled(true);
+
+                                    mMap.addMarker(new MarkerOptions().position(place.getLatLng())
+                                    .title(place.getName().toString())
+                                    .visible(true));
+
+
+                                }
+                            });
+
+
+
 
                             String url = getRequestUrl(mylatlng, placeID);
                             DirectionActivity.TaskRequestDirections taskRequestDirections = new DirectionActivity.TaskRequestDirections();
@@ -168,7 +189,9 @@ public class DirectionActivity extends AppCompatActivity implements OnMapReadyCa
         //Mode for find direction
         String mode = "mode=driving";
 
-        String key = "key="+"AIzaSyD1JaI9WiLnQ9eZP2noPmtRwWNsnt0gcvM";
+        //String key = "key="+"AIzaSyD1JaI9WiLnQ9eZP2noPmtRwWNsnt0gcvM";
+        String key = "key="+ getResources().getString(R.string.google_maps_key);
+
         //Build the full param
         String param = str_org +"&" + str_dest + "&" +sensor+"&" +mode+"&"+key;
         //Output format

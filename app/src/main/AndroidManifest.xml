@@ -33,7 +33,8 @@
         <activity android:name=".MapActivity" />
         <activity android:name=".RestaurantActivity" />
         <activity android:name=".DirectionActivity" />
-        <activity android:name=".ReminderActivity"></activity>
+        <activity android:name=".ReminderActivity" />
+        <activity android:name=".RegisterActivity"></activity>
     </application>
 
 </manifest>
