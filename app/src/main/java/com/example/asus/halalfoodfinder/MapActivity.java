@@ -127,6 +127,9 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         setContentView(R.layout.activity_map);
 
 
+        //mLocationPermissionGranted = true;
+
+
 
         mPLaceID = new ArrayList<String>();
         //ArrayList<LatLng> listPoints;
